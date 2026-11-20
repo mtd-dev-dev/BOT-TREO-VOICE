@@ -1,112 +1,345 @@
-# -*- coding: utf-8 -*-
-# ==============================================================
-# Protected by MTĐ TOOL (Mandatory Watermark & Anti-Tamper)
-# [!] CẢNH BÁO: Nghiêm cấm mọi hành vi xóa/sửa chữ ký hoặc bẻ khóa!
-# ==============================================================
-import base64, zlib, marshal, sys, hashlib, platform, uuid, traceback
-from datetime import datetime
+import asyncio
+import json
+import os
+import time
+import aiohttp
+from aiohttp import web
+import discord
+from discord.ext import commands
+import websockets
 
-_SIGNATURE = "MTĐ TOOL"
-_EXPECTED_HASH = "6e3fcddb451550ab4a43313be48b651c29def3fd63a4dd69b07db8de6ed10aa9"
-_ENCODED_DATA = "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"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+PORT = int(os.getenv("PORT", "10000"))
+GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json"
 
-def _get_masked_input(prompt=""):
-    sys.stdout.write(prompt)
-    sys.stdout.flush()
-    password = ""
-    if platform.system() == 'Windows':
-        import msvcrt
-        while True:
-            ch = msvcrt.getwch()
-            if ch in ('\r', '\n'):
-                sys.stdout.write('\n')
-                break
-            elif ch == '\x03':
-                raise KeyboardInterrupt
-            elif ch == '\b':
-                if len(password) > 0:
-                    password = password[:-1]
-                    sys.stdout.write('\b \b')
-                    sys.stdout.flush()
-            else:
-                password += ch
-                sys.stdout.write('*')
-                sys.stdout.flush()
-    else:
-        import termios, tty
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
+BADGE_MILESTONES = [
+    ("Người mới", 1),
+    ("Chim non", 5),
+    ("Đột phá", 20),
+    ("Nổi bật", 75),
+    ("Người tạo xu hướng", 150),
+    ("Tiêu điểm", 300),
+    ("Ngôi sao", 500),
+    ("Cảm giác", 1000),
+    ("Nhà tiên tri", 2000),
+    ("Xuất thần", 5000),
+]
+
+active_tasks: dict[int, asyncio.Task] = {}
+
+
+async def send_webhook(webhook_url: str, content: str):
+    if not webhook_url:
+        return
+    async with aiohttp.ClientSession() as session:
         try:
-            tty.setraw(fd)
-            while True:
-                ch = sys.stdin.read(1)
-                if ch in ('\n', '\r'):
-                    sys.stdout.write('\n')
-                    sys.stdout.flush()
-                    break
-                elif ch == '\x03':
-                    raise KeyboardInterrupt
-                elif ch in ('\x7f', '\b'):
-                    if len(password) > 0:
-                        password = password[:-1]
-                        sys.stdout.write('\b \b')
-                        sys.stdout.flush()
-                else:
-                    password += ch
-                    sys.stdout.write('*')
-                    sys.stdout.flush()
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    return password
+            async with session.post(webhook_url, json={"content": content}) as resp:
+                if resp.status not in (200, 204):
+                    print(f"[Webhook] Lỗi HTTP {resp.status}")
+        except Exception as e:
+            print(f"[Webhook] Lỗi gửi: {e}")
 
-def _security_checks():
-    # --- LUÔN LUÔN CHẠY: Kiểm tra tính toàn vẹn chữ ký MTĐ TOOL ---
-    _check_payload = f"{_SIGNATURE}:{_ENCODED_DATA}".encode('utf-8')
-    if hashlib.sha256(_check_payload).hexdigest() != _EXPECTED_HASH:
-        print("[-] LỖI BẢO MẬT: Phát hiện chữ ký 'MTĐ TOOL' đã bị xóa hoặc sửa đổi trái phép!")
-        print("[-] Tệp tin từ chối thực thi.")
-        sys.exit(1)
-        
-    # --- TÙY CHỌN: Khóa HWID (Chỉ chạy khi được bật) ---
-    if False:
-        _current_hwid = hashlib.sha256(f"{platform.node()}-{platform.machine()}-{uuid.getnode()}".encode()).hexdigest()[:16].upper()
-        if _current_hwid != "":
-            print("[-] LỖI BẢN QUYỀN: Thiết bị này không được phép chạy tệp tin được bảo vệ!")
-            print(f"[-] HWID của thiết bị: {_current_hwid}")
-            sys.exit(1)
-            
-    # --- TÙY CHỌN: Giới hạn thời gian (Chỉ chạy khi được bật) ---
-    if False:
-        _exp_date = datetime.strptime("", "%Y-%m-%d")
-        if datetime.now() > _exp_date:
-            print("[-] LỖI BẢN QUYỀN: Tệp tin đã hết hạn sử dụng theo thời gian cấu hình!")
-            sys.exit(1)
-            
-    # --- TÙY CHỌN: Mật khẩu thực thi (Hiện dấu * khi gõ) ---
-    if False:
-        _input_pass = _get_masked_input("🔑 Nhập mật khẩu bảo vệ để chạy file: ")
-        if hashlib.sha256(_input_pass.encode()).hexdigest() != "":
-            print("[-] Mật khẩu không chính xác! Từ chối truy cập.")
-            sys.exit(1)
 
-def _execute():
-    _security_checks()
-    _k1 = [62, 102, 1, 47, 56, 178, 42, 139, 58, 103, 252, 218, 238, 64, 253, 194, 129, 243, 76, 188, 141, 126, 64, 62, 125, 183, 138, 233, 199]
-    _k2 = [248, 251, 14, 32, 182, 243, 198, 2, 83, 199, 243, 93, 77, 27, 186, 95, 59, 190, 22, 190, 85, 189, 141]
-    
+async def heartbeat_loop(ws, interval_sec: float, seq_holder: dict):
+    while True:
+        await asyncio.sleep(interval_sec)
+        try:
+            await ws.send(json.dumps({"op": 1, "d": seq_holder["seq"]}))
+        except Exception:
+            break
+
+
+async def milestone_watcher(
+    start_time: float,
+    webhook_url: str,
+    user_label: str,
+    guild_id: str,
+    channel_id: str,
+):
+    notified = set()
+    while True:
+        await asyncio.sleep(10)
+        elapsed_hours = (time.monotonic() - start_time) / 3600.0
+
+        for badge_name, required_hours in BADGE_MILESTONES:
+            if badge_name not in notified and elapsed_hours >= required_hours:
+                notified.add(badge_name)
+                msg = (
+                    f"🎉 **Đạt mốc huy hiệu Voice!**\n"
+                    f"• Tài khoản: `{user_label}`\n"
+                    f"• Huy hiệu: **{badge_name}** ({required_hours} giờ)\n"
+                    f"• Server / Kênh: `{guild_id}` / `{channel_id}`\n"
+                    f"• Thời gian treo thực tế: `{elapsed_hours:.2f}` giờ"
+                )
+                await send_webhook(webhook_url, msg)
+
+
+async def run_voice_afk(
+    owner_id: int,
+    token: str,
+    guild_id: str,
+    channel_id: str,
+    webhook_url: str,
+    self_mute: bool = True,
+    self_deaf: bool = True,
+):
+    seq_holder = {"seq": None}
+    start_time = time.monotonic()
+    watcher_task = None
+
     try:
-        _comp = base64.b64decode(_ENCODED_DATA)
-        _x2 = zlib.decompress(_comp)
-        _x1 = bytes([b ^ _k2[i % len(_k2)] for i, b in enumerate(_x2)])
-        _marshalled = bytes([b ^ _k1[i % len(_k1)] for i, b in enumerate(_x1)])
-        _code = marshal.loads(_marshalled)
-        
-        _g = globals()
-        _g.update({'__file__': __file__, '__name__': '__main__', '__doc__': None, '__package__': None})
-        exec(_code, _g)
-    except Exception as _err:
-        print(f"[-] Lỗi thực thi file: {_err}")
-        traceback.print_exc()
+        while True:
+            hb_task = None
+            try:
+                async with websockets.connect(
+                    GATEWAY_URL,
+                    max_size=None,
+                    ping_interval=None,
+                ) as ws:
+                    hello_data = json.loads(await ws.recv())
+                    heartbeat_interval = hello_data["d"]["heartbeat_interval"] / 1000.0
+
+                    hb_task = asyncio.create_task(
+                        heartbeat_loop(ws, heartbeat_interval, seq_holder)
+                    )
+
+                    identify_payload = {
+                        "op": 2,
+                        "d": {
+                            "token": token.strip(),
+                            "capabilities": 16381,
+                            "properties": {
+                                "os": "Windows",
+                                "browser": "Chrome",
+                                "device": "",
+                            },
+                            "presence": {
+                                "status": "online",
+                                "since": 0,
+                                "activities": [],
+                                "afk": True,
+                            },
+                        },
+                    }
+                    await ws.send(json.dumps(identify_payload))
+
+                    voice_payload = {
+                        "op": 4,
+                        "d": {
+                            "guild_id": str(guild_id),
+                            "channel_id": str(channel_id),
+                            "self_mute": self_mute,
+                            "self_deaf": self_deaf,
+                        },
+                    }
+                    await ws.send(json.dumps(voice_payload))
+
+                    if watcher_task is None or watcher_task.done():
+                        watcher_task = asyncio.create_task(
+                            milestone_watcher(
+                                start_time=start_time,
+                                webhook_url=webhook_url,
+                                user_label=token[:12] + "...",
+                                guild_id=guild_id,
+                                channel_id=channel_id,
+                            )
+                        )
+
+                    async for raw_msg in ws:
+                        event = json.loads(raw_msg)
+                        if event.get("s") is not None:
+                            seq_holder["seq"] = event["s"]
+
+                        op = event.get("op")
+                        if op == 1:
+                            await ws.send(json.dumps({"op": 1, "d": seq_holder["seq"]}))
+                        elif op == 7:
+                            break
+                        elif op == 9:
+                            await asyncio.sleep(5)
+                            break
+
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(f"[Gateway][User {owner_id}] Mất kết nối: {e}. Thử lại sau 5s...")
+                await asyncio.sleep(5)
+            finally:
+                if hb_task and not hb_task.done():
+                    hb_task.cancel()
+
+    except asyncio.CancelledError:
+        if watcher_task and not watcher_task.done():
+            watcher_task.cancel()
+        print(f"[Task][User {owner_id}] Đã dừng phiên treo voice.")
+
+
+class TreoVoiceModal(discord.ui.Modal, title="Cấu Hình Treo Voice AFK"):
+    token_user = discord.ui.TextInput(
+        label="Token User",
+        placeholder="Nhập Token tài khoản cần treo...",
+        style=discord.TextStyle.short,
+        required=True,
+    )
+    guild_id = discord.ui.TextInput(
+        label="ID Guild (ID Server)",
+        placeholder="Ví dụ: 1569569166246154240",
+        style=discord.TextStyle.short,
+        required=True,
+    )
+    channel_id = discord.ui.TextInput(
+        label="ID Voice (ID Kênh Thoại)",
+        placeholder="Ví dụ: 1573358338236883005",
+        style=discord.TextStyle.short,
+        required=True,
+    )
+    webhook_url = discord.ui.TextInput(
+        label="Webhook URL (Thông báo đạt mốc)",
+        placeholder="https://discord.com/api/webhooks/... (có thể để trống)",
+        style=discord.TextStyle.short,
+        required=False,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
+        token = self.token_user.value.strip()
+        g_id = self.guild_id.value.strip()
+        c_id = self.channel_id.value.strip()
+        wh_url = self.webhook_url.value.strip()
+
+        if not g_id.isdigit() or not c_id.isdigit():
+            await interaction.response.send_message(
+                "❌ **ID Guild** và **ID Voice** phải là dãy số hợp lệ.",
+                ephemeral=True,
+            )
+            return
+
+        old_task = active_tasks.get(user_id)
+        if old_task and not old_task.done():
+            old_task.cancel()
+
+        task = asyncio.create_task(
+            run_voice_afk(
+                owner_id=user_id,
+                token=token,
+                guild_id=g_id,
+                channel_id=c_id,
+                webhook_url=wh_url,
+            )
+        )
+        active_tasks[user_id] = task
+
+        embed = discord.Embed(
+            title="✅ Đã Bắt Đầu Treo Voice",
+            color=discord.Color.from_rgb(0, 255, 240),
+        )
+        embed.add_field(name="Token", value=f"`{token[:12]}...`", inline=True)
+        embed.add_field(name="Guild ID", value=f"`{g_id}`", inline=True)
+        embed.add_field(name="Voice ID", value=f"`{c_id}`", inline=True)
+        embed.add_field(
+            name="Webhook",
+            value="Đã cấu hình" if wh_url else "Không sử dụng",
+            inline=False,
+        )
+        embed.set_footer(text="Bot sẽ tự gửi Webhook khi đạt từng mốc huy hiệu.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+class TreoVoicePanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Nhập Thông Tin & Treo",
+        style=discord.ButtonStyle.success,
+        emoji="🎧",
+        custom_id="btn_open_treo_voice_modal",
+    )
+    async def open_modal_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        await interaction.response.send_modal(TreoVoiceModal())
+
+    @discord.ui.button(
+        label="Dừng Treo",
+        style=discord.ButtonStyle.danger,
+        emoji="🛑",
+        custom_id="btn_stop_treo_voice",
+    )
+    async def stop_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        task = active_tasks.pop(interaction.user.id, None)
+        if task and not task.done():
+            task.cancel()
+            await interaction.response.send_message(
+                "🛑 Đã dừng phiên treo Voice của bạn.", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message(
+                "ℹ️ Bạn hiện không có phiên treo Voice nào đang chạy.", ephemeral=True
+            )
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+
+class TreoVoiceBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=".", intents=intents, case_insensitive=True)
+
+    async def setup_hook(self):
+        self.add_view(TreoVoicePanelView())
+
+
+bot = TreoVoiceBot()
+
+
+@bot.event
+async def on_ready():
+    print(f"Bot đã online: {bot.user} (ID: {bot.user.id})")
+
+
+@bot.command(name="TreoVoice")
+async def treo_voice_cmd(ctx: commands.Context):
+    embed = discord.Embed(
+        title="🎙️ PANEL TREO VOICE CÀY HUY HIỆU",
+        description=(
+            "Nhấn nút **Nhập Thông Tin & Treo** bên dưới để mở biểu mẫu cấu hình.\n\n"
+            "**Các mốc huy hiệu tự động báo Webhook:**\n"
+            "• `1h` Người mới • `5h` Chim non • `20h` Đột phá\n"
+            "• `75h` Nổi bật • `150h` Người tạo xu hướng • `300h` Tiêu điểm\n"
+            "• `500h` Ngôi sao • `1.000h` Cảm giác • `2.000h` Nhà tiên tri • `5.000h` Xuất thần"
+        ),
+        color=discord.Color.from_rgb(0, 255, 240),
+    )
+    embed.set_footer(text="Thông tin nhập vào Modal được ẩn riêng tư (Ephemeral).")
+    await ctx.send(embed=embed, view=TreoVoicePanelView())
+
+
+async def handle_health(request: web.Request) -> web.Response:
+    return web.Response(text="OK - Bot is running", status=200)
+
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", handle_health)
+    app.router.add_get("/health", handle_health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    print(f"[HTTP] Keepalive server đang chạy trên cổng {PORT}")
+
+
+async def main():
+    if not BOT_TOKEN:
+        raise RuntimeError("Thiếu biến môi trường BOT_TOKEN")
+    await start_web_server()
+    async with bot:
+        await bot.start(BOT_TOKEN)
+
 
 if __name__ == "__main__":
-    _execute()
+    asyncio.run(main())
